@@ -1,0 +1,14 @@
+# Active on the server: SPRING_PROFILES_ACTIVE=prod
+# Every value below comes from the environment. Nothing secret is committed.
+app:
+  base-url: ${APP_BASE_URL}
+  frontend-url: ${APP_FRONTEND_URL}
+  cors-allowed-origins: ${APP_CORS_ORIGINS}
+  oauth-state:
+    # HTTPS only in production, so the state cookie must be Secure.
+    cookie-secure: true
+
+logging:
+  level:
+    com.aliahmed.Vercel: INFO
+    org.hibernate.SQL: WARN
