@@ -1,5 +1,6 @@
 package com.aliahmed.Vercel.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -31,9 +32,35 @@ public class AppProperties {
     private final Jwt jwt = new Jwt();
     private final Crypto crypto = new Crypto();
     private final OAuthState oauthState = new OAuthState();
+    private final AuthCode authCode = new AuthCode();
 
     public String githubCallbackUrl() {
         return baseUrl + "/api/auth/github/callback";
+    }
+
+    /**
+     * Catches the two misconfigurations that otherwise surface as an opaque
+     * GitHub error page rather than a startup failure.
+     */
+    @PostConstruct
+    void validate() {
+        requireAbsoluteUrl(baseUrl, "app.base-url", "APP_BASE_URL");
+        requireAbsoluteUrl(frontendUrl, "app.frontend-url", "APP_FRONTEND_URL");
+    }
+
+    private void requireAbsoluteUrl(String value, String propertyName, String envVarName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(
+                    propertyName + " (env " + envVarName + ") is not set.");
+        }
+        if (!value.startsWith("http://") && !value.startsWith("https://")) {
+            throw new IllegalStateException(
+                    propertyName + " (env " + envVarName + ") must start with http:// or https://, got: " + value);
+        }
+        if (value.endsWith("/")) {
+            throw new IllegalStateException(
+                    propertyName + " (env " + envVarName + ") must not end with a slash, got: " + value);
+        }
     }
 
     @Getter
@@ -50,6 +77,13 @@ public class AppProperties {
     public static class Crypto {
         /** Base64-encoded AES key, exactly 32 bytes decoded. */
         private String secret;
+    }
+
+    @Getter
+    @Setter
+    public static class AuthCode {
+        /** Deliberately short — the frontend redeems it immediately on page load. */
+        private Duration ttl = Duration.ofSeconds(60);
     }
 
     @Getter
