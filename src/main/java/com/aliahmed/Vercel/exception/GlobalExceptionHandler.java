@@ -31,6 +31,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_GATEWAY, "Could not complete the GitHub request.", request);
     }
 
+    @ExceptionHandler(InvalidAuthCodeException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidAuthCode(InvalidAuthCodeException e,
+                                                                  HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, e.getMessage(), request);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiErrorResponse> handleBadRequest(IllegalArgumentException e,
                                                              HttpServletRequest request) {
