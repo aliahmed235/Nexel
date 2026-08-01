@@ -1,6 +1,7 @@
 package com.aliahmed.Vercel.Services;
 
 import com.aliahmed.Vercel.config.AppProperties;
+import com.aliahmed.Vercel.util.SecretKeyDecoder;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
@@ -31,10 +32,12 @@ public class CryptoService {
     private final SecureRandom random = new SecureRandom();
 
     public CryptoService(AppProperties properties) {
-        byte[] raw = Base64.getDecoder().decode(properties.getCrypto().getSecret());
+        byte[] raw = SecretKeyDecoder.decode(
+                properties.getCrypto().getSecret(), "app.crypto.secret", "CRYPTO_SECRET");
         if (raw.length != 32) {
             throw new IllegalStateException(
-                    "app.crypto.secret must be a base64-encoded 32-byte key, got " + raw.length + " bytes");
+                    "app.crypto.secret (env CRYPTO_SECRET) must decode to exactly 32 bytes, got "
+                            + raw.length + ". Generate one with: openssl rand -base64 32");
         }
         this.key = new SecretKeySpec(raw, "AES");
     }
