@@ -2,6 +2,7 @@ package com.aliahmed.Vercel.Services;
 
 import com.aliahmed.Vercel.config.AppProperties;
 import com.aliahmed.Vercel.entity.User;
+import com.aliahmed.Vercel.util.SecretKeyDecoder;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -29,10 +30,11 @@ public class JwtService {
 
     public JwtService(AppProperties properties) {
         this.config = properties.getJwt();
-        byte[] raw = Base64.getDecoder().decode(config.getSecret());
+        byte[] raw = SecretKeyDecoder.decode(config.getSecret(), "app.jwt.secret", "JWT_SECRET");
         if (raw.length < 32) {
             throw new IllegalStateException(
-                    "app.jwt.secret must decode to at least 32 bytes, got " + raw.length);
+                    "app.jwt.secret (env JWT_SECRET) must decode to at least 32 bytes, got "
+                            + raw.length + ". Generate one with: openssl rand -base64 32");
         }
         this.key = Keys.hmacShaKeyFor(raw);
     }
