@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/github/**").permitAll()
+                        .requestMatchers("/api/auth/github/**", "/api/auth/exchange").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 // Return 401 instead of redirecting to a login page — this is an API.
