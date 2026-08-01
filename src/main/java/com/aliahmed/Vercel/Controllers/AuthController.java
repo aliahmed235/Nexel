@@ -2,7 +2,9 @@ package com.aliahmed.Vercel.Controllers;
 
 import com.aliahmed.Vercel.Services.AuthService;
 import com.aliahmed.Vercel.config.AppProperties;
+import com.aliahmed.Vercel.dto.AuthTokenResponse;
 import com.aliahmed.Vercel.dto.CurrentUserResponse;
+import com.aliahmed.Vercel.dto.ExchangeCodeRequest;
 import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.mapper.UserMapper;
 import com.aliahmed.Vercel.util.CookieUtils;
@@ -15,6 +17,8 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -87,12 +91,23 @@ public class AuthController {
         }
 
         try {
-            String jwt = authService.completeLogin(code);
-            return redirect(authService.buildFrontendRedirect(jwt), clearState);
+            String oneTimeCode = authService.completeGithubLogin(code);
+            return redirect(authService.buildFrontendRedirect(oneTimeCode), clearState);
         } catch (RuntimeException e) {
             log.error("GitHub login failed", e);
             return redirect(authService.buildFrontendErrorRedirect("login_failed"), clearState);
         }
+    }
+
+    /**
+     * Trades the one-time code from the redirect for the session token.
+     *
+     * <p>Called by the frontend, once, immediately on landing. The code is
+     * burned on first use and expires within a minute either way.
+     */
+    @PostMapping("/exchange")
+    public ResponseEntity<AuthTokenResponse> exchange(@RequestBody ExchangeCodeRequest request) {
+        return ResponseEntity.ok(authService.exchangeCode(request.code()));
     }
 
     /** Who am I? The first endpoint the frontend calls with its new token. */
