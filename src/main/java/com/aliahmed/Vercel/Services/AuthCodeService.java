@@ -6,6 +6,7 @@ import com.aliahmed.Vercel.entity.AuthCode;
 import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.exception.InvalidAuthCodeException;
 import com.aliahmed.Vercel.util.SecurityUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,17 +17,13 @@ import java.time.Instant;
  * redirect back to the frontend.
  */
 @Service
+@RequiredArgsConstructor
 public class AuthCodeService {
 
     private static final int CODE_BYTES = 32;
 
     private final AuthCodeRepository repository;
     private final AppProperties properties;
-
-    public AuthCodeService(AuthCodeRepository repository, AppProperties properties) {
-        this.repository = repository;
-        this.properties = properties;
-    }
 
     /** Returns the plaintext code. Only its hash is stored. */
     @Transactional
