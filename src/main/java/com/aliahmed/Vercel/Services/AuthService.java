@@ -8,6 +8,7 @@ import com.aliahmed.Vercel.dto.GithubUserResponse;
 import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.mapper.UserMapper;
 import com.aliahmed.Vercel.util.SecurityUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
  * translate this into cookies and redirects.
  */
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private static final int STATE_BYTES = 32;
@@ -31,24 +33,6 @@ public class AuthService {
     private final UserMapper userMapper;
     private final AppProperties appProperties;
     private final GithubOAuthProperties githubProperties;
-
-    public AuthService(GithubOAuthClient githubClient,
-                       UserService userService,
-                       GithubAccountService githubAccountService,
-                       AuthCodeService authCodeService,
-                       JwtService jwtService,
-                       UserMapper userMapper,
-                       AppProperties appProperties,
-                       GithubOAuthProperties githubProperties) {
-        this.githubClient = githubClient;
-        this.userService = userService;
-        this.githubAccountService = githubAccountService;
-        this.authCodeService = authCodeService;
-        this.jwtService = jwtService;
-        this.userMapper = userMapper;
-        this.appProperties = appProperties;
-        this.githubProperties = githubProperties;
-    }
 
     /** An unguessable value echoed back by GitHub, proving the callback belongs to this browser. */
     public String generateState() {
