@@ -10,6 +10,7 @@ import com.aliahmed.Vercel.mapper.UserMapper;
 import com.aliahmed.Vercel.util.CookieUtils;
 import com.aliahmed.Vercel.util.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +33,7 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
@@ -39,12 +41,6 @@ public class AuthController {
     private final AuthService authService;
     private final UserMapper userMapper;
     private final AppProperties properties;
-
-    public AuthController(AuthService authService, UserMapper userMapper, AppProperties properties) {
-        this.authService = authService;
-        this.userMapper = userMapper;
-        this.properties = properties;
-    }
 
     /** Entry point. Sends the browser to GitHub's consent screen. */
     @GetMapping("/github/authorize")
