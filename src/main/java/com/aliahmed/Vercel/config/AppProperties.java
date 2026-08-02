@@ -82,8 +82,7 @@ public class AppProperties {
     @Getter
     @Setter
     public static class AuthCode {
-        /** Deliberately short — the frontend redeems it immediately on page load. */
-        private Duration ttl = Duration.ofSeconds(60);
+        private Duration ttl = Duration.ofMinutes(5);
     }
 
     @Getter
