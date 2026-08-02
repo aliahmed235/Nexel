@@ -12,15 +12,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
-
-/**
- * AES-GCM encryption for values that must be stored but never read by anyone
- * except this application — currently GitHub access tokens.
- *
- * <p>GCM is authenticated: decryption fails loudly if the ciphertext was
- * tampered with, rather than returning garbage. Each call uses a fresh random
- * IV, which is prepended to the ciphertext so nothing extra needs storing.
- */
 @Service
 public class CryptoService {
 
