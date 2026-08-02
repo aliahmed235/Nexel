@@ -5,23 +5,16 @@ import com.aliahmed.Vercel.dto.GithubTokenResponse;
 import com.aliahmed.Vercel.entity.GithubAccount;
 import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.exception.GithubOAuthException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Owns the GitHub credential. Everything outside this class deals in user ids;
- * the plaintext token is produced only here, on demand.
- */
 @Service
+@RequiredArgsConstructor
 public class GithubAccountService {
 
     private final GithubAccountRepository repository;
     private final CryptoService cryptoService;
-
-    public GithubAccountService(GithubAccountRepository repository, CryptoService cryptoService) {
-        this.repository = repository;
-        this.cryptoService = cryptoService;
-    }
 
     @Transactional
     public void storeToken(User user, GithubTokenResponse token) {
