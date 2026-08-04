@@ -7,6 +7,12 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
 
+  data:
+    redis:
+      # Railway's Redis service provides this as a redis:// URL.
+      # Lettuce connects lazily, so the app still starts if Redis is down.
+      url: ${REDIS_URL:redis://localhost:6379}
+
   jpa:
     hibernate:
       # Flyway owns the schema. Hibernate only validates that it matches.
@@ -41,6 +47,9 @@ app:
     cookie-name: oauth_state
     ttl: 10m
     cookie-secure: ${OAUTH_STATE_COOKIE_SECURE:false}
+  auth-code:
+    # Overridable without a rebuild, e.g. APP_AUTH_CODE_TTL=10m
+    ttl: ${APP_AUTH_CODE_TTL:5m}
 
 github:
   oauth:
