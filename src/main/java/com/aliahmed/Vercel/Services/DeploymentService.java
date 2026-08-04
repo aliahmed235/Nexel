@@ -21,13 +21,17 @@ public class DeploymentService {
     private final DeploymentRepository deploymentRepository;
     private final ProjectRepository projectRepository;
     private final DeploymentMapper deploymentMapper;
+    private final BuildQueue buildQueue;
 
     /**
-     * Records a new build request for a project as {@link DeploymentStatus#QUEUED}.
+     * Records a new build request as {@link DeploymentStatus#QUEUED} and pushes
+     * its id onto the build queue for a worker to pick up.
      *
-     * <p>Phase 3.2 will add a single line here — pushing the saved deployment's
-     * id onto the Redis build queue. Until then the row simply sits QUEUED; no
-     * worker exists to pick it up yet.
+     * <p>The enqueue runs inside the transaction on purpose: if Redis is
+     * unavailable, the whole thing rolls back and the API never claims to have
+     * accepted a build it couldn't queue. The one edge case — the enqueue
+     * succeeds but the commit then fails — leaves a queued id for a deployment
+     * that never existed; the worker (phase 3.3) tolerates a missing id.
      */
     @Transactional
     public DeploymentResponse trigger(Long userId, Long projectId) {
@@ -40,7 +44,7 @@ public class DeploymentService {
                 .build();
 
         Deployment saved = deploymentRepository.save(deployment);
-        // TODO (phase 3.2): buildQueue.enqueue(saved.getId());
+        buildQueue.enqueue(saved.getId());
         return deploymentMapper.toResponse(saved);
     }
 
