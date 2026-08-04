@@ -73,4 +73,27 @@ public class RestClientGithubRepoClient implements GithubRepoClient {
             throw new GithubOAuthException("Failed to fetch repository " + fullName + " from GitHub", e);
         }
     }
+
+    @Override
+    public byte[] downloadRepoZip(Long userId, String fullName, String ref) {
+        String token = githubAccountService.accessTokenFor(userId);
+        try {
+            // GitHub answers with a 302 to codeload; the RestClient follows it.
+            byte[] zip = restClient.get()
+                    .uri(properties.getApiBaseUrl() + "/repos/" + fullName + "/zipball/" + ref)
+                    .header("Authorization", "Bearer " + token)
+                    .header(API_VERSION_HEADER, API_VERSION)
+                    .retrieve()
+                    .body(byte[].class);
+
+            if (zip == null || zip.length == 0) {
+                throw new GithubOAuthException("GitHub returned an empty archive for " + fullName);
+            }
+            return zip;
+        } catch (HttpClientErrorException.NotFound | HttpClientErrorException.Forbidden e) {
+            throw new ResourceNotFoundException("Repository archive not found or not accessible: " + fullName);
+        } catch (RestClientException e) {
+            throw new GithubOAuthException("Failed to download archive for " + fullName, e);
+        }
+    }
 }
