@@ -33,6 +33,8 @@ public class AppProperties {
     private final Crypto crypto = new Crypto();
     private final OAuthState oauthState = new OAuthState();
     private final AuthCode authCode = new AuthCode();
+    private final Worker worker = new Worker();
+    private final Storage storage = new Storage();
 
     public String githubCallbackUrl() {
         return baseUrl + "/api/auth/github/callback";
@@ -83,6 +85,20 @@ public class AppProperties {
     @Setter
     public static class AuthCode {
         private Duration ttl = Duration.ofMinutes(5);
+    }
+
+    @Getter
+    @Setter
+    public static class Worker {
+        /** Whether this instance consumes the build queue. Off = pure API. */
+        private boolean enabled = true;
+    }
+
+    @Getter
+    @Setter
+    public static class Storage {
+        /** Base directory for built sites; one subfolder per deployment id. */
+        private String path = "/data/deployments";
     }
 
     @Getter
