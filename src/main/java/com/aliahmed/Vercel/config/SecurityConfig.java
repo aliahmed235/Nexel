@@ -36,6 +36,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/github/**", "/api/auth/exchange").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        // Deployed sites are public — no authentication.
+                        .requestMatchers("/sites/**").permitAll()
                         .anyRequest().authenticated())
                 // Return 401 instead of redirecting to a login page — this is an API.
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
