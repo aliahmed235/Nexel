@@ -50,6 +50,12 @@ app:
   auth-code:
     # Overridable without a rebuild, e.g. APP_AUTH_CODE_TTL=10m
     ttl: ${APP_AUTH_CODE_TTL:5m}
+  worker:
+    # Set false on a pure-API instance once the worker runs elsewhere.
+    enabled: ${WORKER_ENABLED:true}
+  storage:
+    # A mounted Railway volume in production so built sites survive restarts.
+    path: ${STORAGE_PATH:/data/deployments}
 
 github:
   oauth:
