@@ -11,6 +11,8 @@ import com.aliahmed.Vercel.mapper.DeploymentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -27,11 +29,11 @@ public class DeploymentService {
      * Records a new build request as {@link DeploymentStatus#QUEUED} and pushes
      * its id onto the build queue for a worker to pick up.
      *
-     * <p>The enqueue runs inside the transaction on purpose: if Redis is
-     * unavailable, the whole thing rolls back and the API never claims to have
-     * accepted a build it couldn't queue. The one edge case — the enqueue
-     * succeeds but the commit then fails — leaves a queued id for a deployment
-     * that never existed; the worker (phase 3.3) tolerates a missing id.
+     * <p>The enqueue is deferred to <em>after</em> the transaction commits. The
+     * worker is a separate thread whose blocking pop wakes the instant an id is
+     * pushed; enqueuing before commit let it look the deployment up before the
+     * row was visible, so it was skipped as a phantom and never built. Waiting
+     * for commit also means a rollback never leaves a queued id behind.
      */
     @Transactional
     public DeploymentResponse trigger(Long userId, Long projectId) {
@@ -44,8 +46,17 @@ public class DeploymentService {
                 .build();
 
         Deployment saved = deploymentRepository.save(deployment);
-        buildQueue.enqueue(saved.getId());
+        enqueueAfterCommit(saved.getId());
         return deploymentMapper.toResponse(saved);
+    }
+
+    private void enqueueAfterCommit(Long deploymentId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                buildQueue.enqueue(deploymentId);
+            }
+        });
     }
 
     @Transactional(readOnly = true)
