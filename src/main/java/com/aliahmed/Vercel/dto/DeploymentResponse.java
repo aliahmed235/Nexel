@@ -9,6 +9,7 @@ public record DeploymentResponse(
         String commitSha,
         boolean current,
         String errorMessage,
+        String url,
         Instant createdAt,
         Instant readyAt
 ) {
