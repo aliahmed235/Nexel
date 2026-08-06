@@ -40,6 +40,11 @@ public class AppProperties {
         return baseUrl + "/api/auth/github/callback";
     }
 
+    /** The public URL a deployed site is served at, by subdomain. */
+    public String siteUrl(String subdomain) {
+        return baseUrl + "/sites/" + subdomain + "/";
+    }
+
     /**
      * Catches the two misconfigurations that otherwise surface as an opaque
      * GitHub error page rather than a startup failure.
