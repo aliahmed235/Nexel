@@ -1,11 +1,16 @@
 package com.aliahmed.Vercel.mapper;
 
+import com.aliahmed.Vercel.config.AppProperties;
 import com.aliahmed.Vercel.dto.DeploymentResponse;
 import com.aliahmed.Vercel.entity.Deployment;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class DeploymentMapper {
+
+    private final AppProperties properties;
 
     public DeploymentResponse toResponse(Deployment deployment) {
         return new DeploymentResponse(
@@ -15,6 +20,7 @@ public class DeploymentMapper {
                 deployment.getCommitSha(),
                 deployment.isCurrent(),
                 deployment.getErrorMessage(),
+                properties.siteUrl(deployment.getProject().getSubdomain()),
                 deployment.getCreatedAt(),
                 deployment.getReadyAt());
     }
