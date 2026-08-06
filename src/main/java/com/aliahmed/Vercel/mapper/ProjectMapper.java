@@ -1,7 +1,9 @@
 package com.aliahmed.Vercel.mapper;
 
+import com.aliahmed.Vercel.config.AppProperties;
 import com.aliahmed.Vercel.dto.ProjectResponse;
 import com.aliahmed.Vercel.entity.Project;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -9,7 +11,10 @@ import org.springframework.stereotype.Component;
  * in the API response.
  */
 @Component
+@RequiredArgsConstructor
 public class ProjectMapper {
+
+    private final AppProperties properties;
 
     public ProjectResponse toResponse(Project project) {
         return new ProjectResponse(
@@ -19,6 +24,7 @@ public class ProjectMapper {
                 project.getDefaultBranch(),
                 project.getSubdomain(),
                 project.getFramework(),
+                properties.siteUrl(project.getSubdomain()),
                 project.getCreatedAt());
     }
 }
