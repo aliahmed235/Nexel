@@ -102,7 +102,9 @@ public class AppProperties {
     @Getter
     @Setter
     public static class Storage {
-        /** Base directory for built sites; one subfolder per deployment id. */
+        /** Which backend serves built sites: "local" (disk) or "r2" (object storage). */
+        private String type = "local";
+        /** Base directory for the local backend; one subfolder per deployment id. */
         private String path = "/data/deployments";
     }
 
