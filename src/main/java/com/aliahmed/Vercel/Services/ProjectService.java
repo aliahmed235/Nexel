@@ -1,9 +1,11 @@
 package com.aliahmed.Vercel.Services;
 
+import com.aliahmed.Vercel.Repositories.DeploymentRepository;
 import com.aliahmed.Vercel.Repositories.ProjectRepository;
 import com.aliahmed.Vercel.dto.CreateProjectRequest;
 import com.aliahmed.Vercel.dto.GithubRepoResponse;
 import com.aliahmed.Vercel.dto.ProjectResponse;
+import com.aliahmed.Vercel.entity.Deployment;
 import com.aliahmed.Vercel.entity.Project;
 import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.exception.ConflictException;
@@ -24,9 +26,11 @@ public class ProjectService {
     private static final int MAX_SUBDOMAIN_ATTEMPTS = 5;
 
     private final ProjectRepository projectRepository;
+    private final DeploymentRepository deploymentRepository;
     private final GithubRepoClient githubRepoClient;
     private final UserService userService;
     private final ProjectMapper projectMapper;
+    private final StorageService storageService;
 
     /** Live read-through to GitHub — nothing stored. */
     @Transactional(readOnly = true)
@@ -73,9 +77,22 @@ public class ProjectService {
         return projectMapper.toResponse(getOwned(userId, id));
     }
 
+    /**
+     * Disconnects a project: removes it and its deployments (the DB cascade),
+     * then deletes the built site files those deployments left on disk so a
+     * disconnect doesn't leave orphaned folders behind.
+     */
     @Transactional
     public void delete(Long userId, Long id) {
-        projectRepository.delete(getOwned(userId, id));
+        Project project = getOwned(userId, id);
+
+        List<Long> deploymentIds = deploymentRepository.findByProjectIdOrderByCreatedAtDesc(id)
+                .stream()
+                .map(Deployment::getId)
+                .toList();
+
+        projectRepository.delete(project);
+        deploymentIds.forEach(storageService::delete);
     }
 
     private Project getOwned(Long userId, Long id) {
