@@ -54,8 +54,16 @@ app:
     # Set false on a pure-API instance once the worker runs elsewhere.
     enabled: ${WORKER_ENABLED:true}
   storage:
-    # A mounted Railway volume in production so built sites survive restarts.
+    # "local" (disk / Railway volume) or "r2" (Cloudflare object storage).
+    type: ${STORAGE_TYPE:local}
+    # Base dir for the local backend.
     path: ${STORAGE_PATH:/data/deployments}
+
+r2:
+  endpoint: ${R2_ENDPOINT:}
+  bucket: ${R2_BUCKET:nexel-sites}
+  access-key-id: ${R2_ACCESS_KEY_ID:}
+  secret-access-key: ${R2_SECRET_ACCESS_KEY:}
 
 github:
   oauth:
