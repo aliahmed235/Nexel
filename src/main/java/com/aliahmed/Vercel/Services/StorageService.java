@@ -4,9 +4,9 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * Where a built site's files come to rest. An interface so the local-disk
- * implementation can later be swapped for object storage (S3/R2) without
- * touching the build pipeline.
+ * Where a built site's files come to rest. An interface so the backend — local
+ * disk or R2 object storage — can change without touching the build pipeline or
+ * the serving layer.
  */
 public interface StorageService {
 
@@ -14,9 +14,12 @@ public interface StorageService {
     void store(Long deploymentId, Path outputDir);
 
     /**
-     * Resolves a request path within a deployment to a real file to serve, or
-     * empty if it doesn't exist. A directory (or the root) resolves to its
-     * {@code index.html}. Guards against path traversal outside the deployment.
+     * Resolves a request path within a deployment to a servable file, or empty
+     * if it doesn't exist. A directory (or the root) resolves to its
+     * {@code index.html}. Guards against escaping the deployment's own files.
      */
-    Optional<Path> resolve(Long deploymentId, String requestPath);
+    Optional<StoredObject> resolve(Long deploymentId, String requestPath);
+
+    /** Removes a deployment's stored files. Best-effort; safe if already gone. */
+    void delete(Long deploymentId);
 }
