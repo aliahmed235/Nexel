@@ -2,14 +2,12 @@ package com.aliahmed.Vercel.Controllers;
 
 import com.aliahmed.Vercel.Services.SiteResolutionService;
 import com.aliahmed.Vercel.Services.StorageService;
+import com.aliahmed.Vercel.Services.StoredObject;
 import com.aliahmed.Vercel.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
-import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 
 /**
  * Serves deployed static sites.
@@ -52,17 +49,14 @@ public class SiteController {
         Long deploymentId = siteResolution.currentDeploymentId(subdomain)
                 .orElseThrow(() -> new ResourceNotFoundException("No live site for '" + subdomain + "'"));
 
-        Path file = storageService.resolve(deploymentId, path)
+        StoredObject object = storageService.resolve(deploymentId, path)
                 .orElseThrow(() -> new ResourceNotFoundException("Not found: " + path));
 
-        MediaType contentType = MediaTypeFactory.getMediaType(file.getFileName().toString())
-                .orElse(MediaType.APPLICATION_OCTET_STREAM);
-
         return ResponseEntity.ok()
-                .contentType(contentType)
+                .contentType(object.contentType())
                 // no-cache for now so a redeploy shows immediately; real caching is phase 6.
                 .cacheControl(CacheControl.noCache())
-                .body(new FileSystemResource(file));
+                .body(object.resource());
     }
 
     /** The part of the URL after /sites/{subdomain}, decoded. */
