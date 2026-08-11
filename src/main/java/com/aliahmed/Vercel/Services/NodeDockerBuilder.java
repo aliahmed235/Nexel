@@ -94,6 +94,16 @@ public class NodeDockerBuilder implements SiteBuilder {
     }
 
     private void runContainerBuild(Path projectDir) {
+        // We serve sites under a path prefix (/sites/<subdomain>/), so assets must use
+        // relative URLs or the browser requests them from the domain root and 404s.
+        // Vite bakes the base in at build time; force it to relative here so the repo
+        // needs no config change. Works for "vite build" and "tsc && vite build" alike —
+        // npm forwards the trailing args to the last command in the chain only.
+        String buildStep = usesVite(projectDir)
+                ? "npm run build -- --base=./"
+                : "npm run build";
+        String innerScript = "npm install && " + buildStep;
+
         // Run as the host user so build output is owned by the worker, not root,
         // and keep npm's cache/home inside the container's writable /tmp.
         String command = String.join(" ",
@@ -106,11 +116,31 @@ public class NodeDockerBuilder implements SiteBuilder {
                 "-w", "/app",
                 "--memory", MEMORY_LIMIT_GB + "g",
                 NODE_IMAGE,
-                "sh", "-c", "\"npm install && npm run build\"");
+                "sh", "-c", "\"" + innerScript + "\"");
 
         log.info("Running Node build: {}", command);
         String output = runShell(command);
         log.info("Build output:\n{}", output);
+    }
+
+    /**
+     * True when the project is built by Vite — detected by a {@code vite.config.*} file
+     * or a {@code vite} dependency. Used to inject {@code --base=./} so assets resolve
+     * under our {@code /sites/<subdomain>/} path prefix without any repo change.
+     */
+    private boolean usesVite(Path projectDir) {
+        for (String name : List.of("vite.config.js", "vite.config.ts", "vite.config.mjs", "vite.config.cjs")) {
+            if (Files.isRegularFile(projectDir.resolve(name))) {
+                return true;
+            }
+        }
+        Path packageJson = projectDir.resolve("package.json");
+        try {
+            JsonNode root = objectMapper.readTree(packageJson.toFile());
+            return root.path("devDependencies").has("vite") || root.path("dependencies").has("vite");
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private String runShell(String command) {
