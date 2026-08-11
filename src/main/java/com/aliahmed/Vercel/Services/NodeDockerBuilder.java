@@ -14,7 +14,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /**
  * Builds a Node project by running {@code npm install && npm run build} inside a
@@ -42,7 +44,43 @@ public class NodeDockerBuilder implements SiteBuilder {
 
     @Override
     public boolean supports(Path source) {
-        Path packageJson = source.resolve("package.json");
+        return resolveProjectDir(source).isPresent();
+    }
+
+    @Override
+    public Path build(Path source) {
+        Path projectDir = resolveProjectDir(source).orElseThrow(() ->
+                new IllegalStateException("No package.json with a build script found in the repo"));
+        runContainerBuild(projectDir);
+        return locateOutput(projectDir);
+    }
+
+    /**
+     * Finds the directory to build in. Checks the repo root first, then one level
+     * of subfolders — so a monorepo whose app lives in {@code Client/}, {@code frontend/},
+     * {@code web/} etc. still builds. Picks the first subfolder (alphabetically) that
+     * has a build script; a per-project "root directory" setting would later make this
+     * explicit instead of guessed.
+     */
+    private Optional<Path> resolveProjectDir(Path source) {
+        if (hasBuildScript(source)) {
+            return Optional.of(source);
+        }
+        try (Stream<Path> children = Files.list(source)) {
+            return children
+                    .filter(Files::isDirectory)
+                    .sorted()
+                    .filter(this::hasBuildScript)
+                    .findFirst();
+        } catch (IOException e) {
+            log.warn("Could not scan {} for a Node project", source, e);
+            return Optional.empty();
+        }
+    }
+
+    /** True when {@code dir} holds a package.json whose {@code scripts.build} is defined. */
+    private boolean hasBuildScript(Path dir) {
+        Path packageJson = dir.resolve("package.json");
         if (!Files.isRegularFile(packageJson)) {
             return false;
         }
@@ -55,13 +93,7 @@ public class NodeDockerBuilder implements SiteBuilder {
         }
     }
 
-    @Override
-    public Path build(Path source) {
-        runContainerBuild(source);
-        return locateOutput(source);
-    }
-
-    private void runContainerBuild(Path source) {
+    private void runContainerBuild(Path projectDir) {
         // Run as the host user so build output is owned by the worker, not root,
         // and keep npm's cache/home inside the container's writable /tmp.
         String command = String.join(" ",
@@ -70,7 +102,7 @@ public class NodeDockerBuilder implements SiteBuilder {
                 "--user", "\"$(id -u):$(id -g)\"",
                 "-e", "HOME=/tmp",
                 "-e", "npm_config_cache=/tmp/.npm",
-                "-v", "\"" + source.toAbsolutePath() + "\":/app",
+                "-v", "\"" + projectDir.toAbsolutePath() + "\":/app",
                 "-w", "/app",
                 "--memory", MEMORY_LIMIT_GB + "g",
                 NODE_IMAGE,
@@ -114,9 +146,9 @@ public class NodeDockerBuilder implements SiteBuilder {
         return output;
     }
 
-    private Path locateOutput(Path source) {
+    private Path locateOutput(Path projectDir) {
         for (String dir : OUTPUT_DIRS) {
-            Path candidate = source.resolve(dir);
+            Path candidate = projectDir.resolve(dir);
             if (Files.isDirectory(candidate)) {
                 log.info("Using build output directory: {}", dir);
                 return candidate;
