@@ -9,6 +9,7 @@ public record BuildContext(
         Long deploymentId,
         Long userId,
         String repoFullName,
-        String ref
+        String ref,
+        String rootDirectory
 ) {
 }
