@@ -24,6 +24,7 @@ public class ProjectMapper {
                 project.getDefaultBranch(),
                 project.getSubdomain(),
                 project.getFramework(),
+                project.getRootDirectory(),
                 properties.siteUrl(project.getSubdomain()),
                 project.getCreatedAt());
     }
