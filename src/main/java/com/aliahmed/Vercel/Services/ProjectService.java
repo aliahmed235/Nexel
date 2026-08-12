@@ -5,6 +5,7 @@ import com.aliahmed.Vercel.Repositories.ProjectRepository;
 import com.aliahmed.Vercel.dto.CreateProjectRequest;
 import com.aliahmed.Vercel.dto.GithubRepoResponse;
 import com.aliahmed.Vercel.dto.ProjectResponse;
+import com.aliahmed.Vercel.dto.UpdateProjectRequest;
 import com.aliahmed.Vercel.entity.Deployment;
 import com.aliahmed.Vercel.entity.Project;
 import com.aliahmed.Vercel.entity.User;
@@ -60,9 +61,21 @@ public class ProjectService {
                 .repoFullName(repo.fullName())
                 .defaultBranch(branch)
                 .subdomain(generateUniqueSubdomain(repo.name()))
+                .rootDirectory(request.rootDirectory())
                 .build();
 
         return projectMapper.toResponse(projectRepository.save(project));
+    }
+
+    /**
+     * Updates a project's build settings (currently just the root directory) so an
+     * already-connected repo can be pointed at a subfolder without reconnecting.
+     */
+    @Transactional
+    public ProjectResponse updateSettings(Long userId, Long id, UpdateProjectRequest request) {
+        Project project = getOwned(userId, id);
+        project.setRootDirectory(request.rootDirectory());
+        return projectMapper.toResponse(project);
     }
 
     @Transactional(readOnly = true)
