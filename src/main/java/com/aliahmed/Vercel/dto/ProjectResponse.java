@@ -9,6 +9,7 @@ public record ProjectResponse(
         String defaultBranch,
         String subdomain,
         String framework,
+        String rootDirectory,
         String url,
         Instant createdAt
 ) {
