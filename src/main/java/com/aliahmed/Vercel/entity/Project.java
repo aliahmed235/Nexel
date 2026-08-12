@@ -60,6 +60,14 @@ public class Project {
     /** Detected in phase 3. Null until then. */
     private String framework;
 
+    /**
+     * The subfolder to build in, for monorepos (e.g. "Client"). Null means
+     * auto-detect. Like Vercel's "Root Directory" setting. Always repo-relative
+     * and validated — never allowed to escape the fetched repo.
+     */
+    @Column(name = "root_directory")
+    private String rootDirectory;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
