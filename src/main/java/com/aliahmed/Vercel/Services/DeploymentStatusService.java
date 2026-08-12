@@ -37,7 +37,8 @@ public class DeploymentStatusService {
                     deployment.getId(),
                     project.getUser().getId(),
                     project.getRepoFullName(),
-                    project.getDefaultBranch());
+                    project.getDefaultBranch(),
+                    project.getRootDirectory());
         });
     }
 
