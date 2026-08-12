@@ -44,7 +44,8 @@ public class BuildService {
         SourceFetchService.FetchedSource source = null;
         try {
             source = sourceFetchService.fetch(context.userId(), context.repoFullName(), context.ref());
-            Path output = selectBuilder(source.root()).build(source.root());
+            Path buildRoot = resolveBuildRoot(source.root(), context.rootDirectory());
+            Path output = selectBuilder(buildRoot).build(buildRoot);
             storageService.store(deploymentId, output);
             statusService.markReadyAndCurrent(deploymentId);
             log.info("Deployment {} is READY", deploymentId);
@@ -56,6 +57,29 @@ public class BuildService {
                 cleanup(source.workDir());
             }
         }
+    }
+
+    /**
+     * The directory to build in. With no root directory set, that's the repo root
+     * (and a builder may still auto-detect a subfolder). When set, it's that
+     * subfolder — validated to exist and to stay inside the repo, so a crafted
+     * value can't point the build at an arbitrary path on the worker.
+     */
+    private Path resolveBuildRoot(Path repoRoot, String rootDirectory) {
+        if (rootDirectory == null || rootDirectory.isBlank()) {
+            return repoRoot;
+        }
+        Path candidate = repoRoot.resolve(rootDirectory).normalize();
+        if (!candidate.startsWith(repoRoot)) {
+            throw new IllegalStateException(
+                    "Root directory '" + rootDirectory + "' escapes the repository");
+        }
+        if (!Files.isDirectory(candidate)) {
+            throw new IllegalStateException(
+                    "Root directory '" + rootDirectory + "' does not exist in the repository");
+        }
+        log.info("Building in root directory: {}", rootDirectory);
+        return candidate;
     }
 
     /** First builder (by @Order) that can handle the repo. Static is the fallback. */
