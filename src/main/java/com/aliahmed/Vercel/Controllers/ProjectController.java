@@ -3,6 +3,7 @@ package com.aliahmed.Vercel.Controllers;
 import com.aliahmed.Vercel.Services.ProjectService;
 import com.aliahmed.Vercel.dto.CreateProjectRequest;
 import com.aliahmed.Vercel.dto.ProjectResponse;
+import com.aliahmed.Vercel.dto.UpdateProjectRequest;
 import com.aliahmed.Vercel.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,6 +44,14 @@ public class ProjectController {
     public ResponseEntity<ProjectResponse> get(@PathVariable Long id,
                                                @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(projectService.get(user.getId(), id));
+    }
+
+    /** Update build settings — e.g. point the project at a subfolder to build. */
+    @PatchMapping("/{id}")
+    public ResponseEntity<ProjectResponse> update(@PathVariable Long id,
+                                                  @RequestBody UpdateProjectRequest request,
+                                                  @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(projectService.updateSettings(user.getId(), id, request));
     }
 
     @DeleteMapping("/{id}")
