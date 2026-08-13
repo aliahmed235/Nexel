@@ -6,7 +6,6 @@ import com.aliahmed.Vercel.dto.CreateProjectRequest;
 import com.aliahmed.Vercel.dto.GithubRepoResponse;
 import com.aliahmed.Vercel.dto.ProjectResponse;
 import com.aliahmed.Vercel.dto.UpdateProjectRequest;
-import com.aliahmed.Vercel.entity.Deployment;
 import com.aliahmed.Vercel.entity.Project;
 import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.exception.ConflictException;
@@ -14,6 +13,8 @@ import com.aliahmed.Vercel.exception.ResourceNotFoundException;
 import com.aliahmed.Vercel.mapper.ProjectMapper;
 import com.aliahmed.Vercel.util.Subdomains;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProjectService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProjectService.class);
     private static final int SUFFIX_LENGTH = 4;
     private static final int MAX_SUBDOMAIN_ATTEMPTS = 5;
 
@@ -99,13 +101,24 @@ public class ProjectService {
     public void delete(Long userId, Long id) {
         Project project = getOwned(userId, id);
 
-        List<Long> deploymentIds = deploymentRepository.findByProjectIdOrderByCreatedAtDesc(id)
-                .stream()
-                .map(Deployment::getId)
-                .toList();
+        // Ids only (a scalar projection) — loading Deployment entities here would leave
+        // them managed and pointing at the about-to-be-removed project, which fails the
+        // Hibernate flush. The DB's ON DELETE CASCADE removes the rows themselves.
+        List<Long> deploymentIds = deploymentRepository.findIdsByProjectId(id);
 
         projectRepository.delete(project);
-        deploymentIds.forEach(storageService::delete);
+
+        // Best-effort: a storage error must not fail the disconnect or leave the
+        // project half-deleted. Orphaned files can be cleaned up later.
+        deploymentIds.forEach(this::deleteStoredSite);
+    }
+
+    private void deleteStoredSite(Long deploymentId) {
+        try {
+            storageService.delete(deploymentId);
+        } catch (RuntimeException e) {
+            log.warn("Could not delete stored files for deployment {}: {}", deploymentId, e.getMessage());
+        }
     }
 
     private Project getOwned(Long userId, Long id) {
