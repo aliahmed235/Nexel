@@ -7,9 +7,10 @@ import com.aliahmed.Vercel.util.ProjectPaths;
  * else (repo id, default branch) is read from GitHub as the source of truth.
  * {@code branch} is an optional override of the repo's default branch.
  * {@code rootDirectory} is the subfolder to build in for a monorepo (e.g.
- * "Client"); null/blank means auto-detect.
+ * "Client"); null/blank means auto-detect. {@code defaultPath} is an optional
+ * landing path appended to the site URL; null/blank keeps it at "/".
  */
-public record CreateProjectRequest(String repoFullName, String branch, String rootDirectory) {
+public record CreateProjectRequest(String repoFullName, String branch, String rootDirectory, String defaultPath) {
 
     public CreateProjectRequest {
         if (repoFullName == null || repoFullName.isBlank()) {
@@ -21,5 +22,6 @@ public record CreateProjectRequest(String repoFullName, String branch, String ro
         }
         branch = (branch == null || branch.isBlank()) ? null : branch.trim();
         rootDirectory = ProjectPaths.normalizeRootDirectory(rootDirectory);
+        defaultPath = ProjectPaths.normalizeDefaultPath(defaultPath);
     }
 }
