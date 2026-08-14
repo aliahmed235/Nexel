@@ -25,7 +25,8 @@ public class ProjectMapper {
                 project.getSubdomain(),
                 project.getFramework(),
                 project.getRootDirectory(),
-                properties.siteUrl(project.getSubdomain()),
+                project.getDefaultPath(),
+                properties.siteUrl(project.getSubdomain(), project.getDefaultPath()),
                 project.getCreatedAt());
     }
 }
