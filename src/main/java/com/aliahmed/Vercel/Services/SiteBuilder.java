@@ -15,6 +15,13 @@ public interface SiteBuilder {
     /** Whether this builder can handle the given repository. */
     boolean supports(Path source);
 
-    /** Produces (or locates) the folder of static files to serve. */
-    Path build(Path source);
+    /**
+     * Produces (or locates) the folder of static files to serve.
+     *
+     * @param source   the folder to build
+     * @param basePath the URL path the site is served under (e.g. {@code "/sites/app-x1y2/"}),
+     *                 so a bundler bakes in correct absolute asset paths and the app can read
+     *                 it back for its router base. Ignored by builders that don't recompile.
+     */
+    Path build(Path source, String basePath);
 }
