@@ -10,6 +10,7 @@ public record BuildContext(
         Long userId,
         String repoFullName,
         String ref,
-        String rootDirectory
+        String rootDirectory,
+        String subdomain
 ) {
 }
