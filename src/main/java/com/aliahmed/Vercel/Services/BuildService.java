@@ -29,6 +29,7 @@ public class BuildService {
     private final SourceFetchService sourceFetchService;
     private final List<SiteBuilder> siteBuilders;
     private final StorageService storageService;
+    private final FrameworkDetector frameworkDetector;
 
     public void process(Long deploymentId) {
         Optional<BuildContext> maybeContext = statusService.markBuilding(deploymentId);
@@ -45,6 +46,7 @@ public class BuildService {
         try {
             source = sourceFetchService.fetch(context.userId(), context.repoFullName(), context.ref());
             Path buildRoot = resolveBuildRoot(source.root(), context.rootDirectory());
+            detectFrameworkAndRoot(deploymentId, source.root(), context.rootDirectory());
             Path output = selectBuilder(buildRoot).build(buildRoot);
             storageService.store(deploymentId, output);
             statusService.markReadyAndCurrent(deploymentId);
@@ -56,6 +58,22 @@ public class BuildService {
             if (source != null) {
                 cleanup(source.workDir());
             }
+        }
+    }
+
+    /**
+     * Detects the framework and the app folder, then records them on the project.
+     * Best-effort: it runs alongside a working build and must never fail it, so any
+     * problem is logged and swallowed.
+     */
+    private void detectFrameworkAndRoot(Long deploymentId, Path repoRoot, String rootDirectory) {
+        try {
+            FrameworkDetector.Result result = frameworkDetector.inspect(repoRoot, rootDirectory);
+            statusService.recordDetection(deploymentId, result.framework(), result.rootDirectory());
+            log.info("Detected framework={} rootDirectory={} for deployment {}",
+                    result.framework(), result.rootDirectory(), deploymentId);
+        } catch (RuntimeException e) {
+            log.warn("Framework detection failed for deployment {}: {}", deploymentId, e.getMessage());
         }
     }
 
