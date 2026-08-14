@@ -20,7 +20,7 @@ public class DeploymentMapper {
                 deployment.getCommitSha(),
                 deployment.isCurrent(),
                 deployment.getErrorMessage(),
-                properties.siteUrl(deployment.getProject().getSubdomain()),
+                properties.siteUrl(deployment.getProject().getSubdomain(), deployment.getProject().getDefaultPath()),
                 deployment.getCreatedAt(),
                 deployment.getReadyAt());
     }
