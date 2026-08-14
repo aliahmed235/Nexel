@@ -47,7 +47,8 @@ public class BuildService {
             source = sourceFetchService.fetch(context.userId(), context.repoFullName(), context.ref());
             Path buildRoot = resolveBuildRoot(source.root(), context.rootDirectory());
             detectFrameworkAndRoot(deploymentId, source.root(), context.rootDirectory());
-            Path output = selectBuilder(buildRoot).build(buildRoot);
+            String basePath = "/sites/" + context.subdomain() + "/";
+            Path output = selectBuilder(buildRoot).build(buildRoot, basePath);
             storageService.store(deploymentId, output);
             statusService.markReadyAndCurrent(deploymentId);
             log.info("Deployment {} is READY", deploymentId);
