@@ -68,6 +68,13 @@ public class Project {
     @Column(name = "root_directory")
     private String rootDirectory;
 
+    /**
+     * Optional landing path appended to the site URL — e.g. "products" makes the URL
+     * {@code .../sites/<subdomain>/products}. Null/blank keeps the URL at the root "/".
+     */
+    @Column(name = "default_path")
+    private String defaultPath;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
