@@ -1,9 +1,10 @@
 package com.aliahmed.Vercel.util;
 
 /**
- * Normalises the user-supplied "root directory" (the subfolder to build in) into
- * a safe, repo-relative path — or null when blank. Rejects absolute paths and any
- * {@code ".."} segment so a build can never be pointed outside the fetched repo.
+ * Normalises user-supplied relative paths into a safe form — or null when blank.
+ * Used for the "root directory" (the subfolder to build in) and the "default path"
+ * (the landing path appended to a site's URL). Rejects absolute paths and any
+ * {@code ".."} segment so neither a build nor a URL can be pointed outside its scope.
  */
 public final class ProjectPaths {
 
@@ -11,6 +12,14 @@ public final class ProjectPaths {
     }
 
     public static String normalizeRootDirectory(String raw) {
+        return normalizeRelative(raw, "rootDirectory");
+    }
+
+    public static String normalizeDefaultPath(String raw) {
+        return normalizeRelative(raw, "defaultPath");
+    }
+
+    private static String normalizeRelative(String raw, String field) {
         if (raw == null) {
             return null;
         }
@@ -29,7 +38,7 @@ public final class ProjectPaths {
         }
         for (String segment : value.split("/")) {
             if (segment.equals("..")) {
-                throw new IllegalArgumentException("rootDirectory must not contain '..'");
+                throw new IllegalArgumentException(field + " must not contain '..'");
             }
         }
         return value;
