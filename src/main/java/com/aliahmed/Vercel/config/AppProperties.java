@@ -40,9 +40,13 @@ public class AppProperties {
         return baseUrl + "/api/auth/github/callback";
     }
 
-    /** The public URL a deployed site is served at, by subdomain. */
-    public String siteUrl(String subdomain) {
-        return baseUrl + "/sites/" + subdomain + "/";
+    /**
+     * The public URL a deployed site is served at. A blank {@code defaultPath} keeps it
+     * at the root ("/"); a set one appends it, e.g. {@code .../sites/<subdomain>/products}.
+     */
+    public String siteUrl(String subdomain, String defaultPath) {
+        String suffix = (defaultPath == null || defaultPath.isBlank()) ? "" : defaultPath;
+        return baseUrl + "/sites/" + subdomain + "/" + suffix;
     }
 
     /**
