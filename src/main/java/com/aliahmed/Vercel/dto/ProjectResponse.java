@@ -10,6 +10,7 @@ public record ProjectResponse(
         String subdomain,
         String framework,
         String rootDirectory,
+        String defaultPath,
         String url,
         Instant createdAt
 ) {
