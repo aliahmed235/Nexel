@@ -66,6 +66,25 @@ public class DeploymentStatusService {
         deployment.setReadyAt(Instant.now());
     }
 
+    /**
+     * Records what the build detected: the framework (always), and the folder the app
+     * was found in — but the folder only fills the project's root directory when the
+     * user hasn't set one, so an explicit choice is never overwritten.
+     */
+    @Transactional
+    public void recordDetection(Long deploymentId, String framework, String detectedRootDirectory) {
+        deploymentRepository.findById(deploymentId).ifPresent(deployment -> {
+            Project project = deployment.getProject();
+            if (framework != null) {
+                project.setFramework(framework);
+            }
+            boolean rootUnset = project.getRootDirectory() == null || project.getRootDirectory().isBlank();
+            if (rootUnset && detectedRootDirectory != null && !detectedRootDirectory.isBlank()) {
+                project.setRootDirectory(detectedRootDirectory);
+            }
+        });
+    }
+
     @Transactional
     public void markFailed(Long deploymentId, String message) {
         deploymentRepository.findById(deploymentId).ifPresent(deployment -> {
