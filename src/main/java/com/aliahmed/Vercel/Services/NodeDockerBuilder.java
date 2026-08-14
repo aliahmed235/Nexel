@@ -48,10 +48,10 @@ public class NodeDockerBuilder implements SiteBuilder {
     }
 
     @Override
-    public Path build(Path source) {
+    public Path build(Path source, String basePath) {
         Path projectDir = resolveProjectDir(source).orElseThrow(() ->
                 new IllegalStateException("No package.json with a build script found in the repo"));
-        runContainerBuild(projectDir);
+        runContainerBuild(projectDir, basePath);
         return locateOutput(projectDir);
     }
 
@@ -93,14 +93,16 @@ public class NodeDockerBuilder implements SiteBuilder {
         }
     }
 
-    private void runContainerBuild(Path projectDir) {
-        // We serve sites under a path prefix (/sites/<subdomain>/), so assets must use
-        // relative URLs or the browser requests them from the domain root and 404s.
-        // Vite bakes the base in at build time; force it to relative here so the repo
-        // needs no config change. Works for "vite build" and "tsc && vite build" alike —
-        // npm forwards the trailing args to the last command in the chain only.
+    private void runContainerBuild(Path projectDir, String basePath) {
+        // We serve sites under a path prefix (e.g. /sites/app-x1y2/), so Vite must bake that
+        // exact prefix in as its base. Then assets resolve under the prefix AND the app can
+        // read it back via import.meta.env.BASE_URL to set its router's basename, so
+        // client-side routes (/products, /cart) work under the subpath. Falls back to a
+        // relative base if the path is unknown. Works for "vite build" and "tsc && vite build"
+        // alike — npm forwards the trailing args to the last command in the chain only.
+        String base = (basePath == null || basePath.isBlank()) ? "./" : basePath;
         String buildStep = usesVite(projectDir)
-                ? "npm run build -- --base=./"
+                ? "npm run build -- --base=" + base
                 : "npm run build";
         String innerScript = "npm install && " + buildStep;
 
