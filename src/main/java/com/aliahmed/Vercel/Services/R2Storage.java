@@ -85,7 +85,23 @@ public class R2Storage implements StorageService {
                 return found;
             }
         }
+        // SPA fallback: an extension-less path is a client-side route (e.g. /products),
+        // so serve the app's index.html and let the browser's router handle it. A missing
+        // asset (something with a file extension) still 404s.
+        if (!looksLikeAsset(relative)) {
+            Optional<StoredObject> shell = tryGet(prefix + "index.html", "index.html");
+            if (shell.isPresent()) {
+                return shell;
+            }
+        }
         return Optional.empty();
+    }
+
+    /** A path whose last segment contains a "." is a file request (asset), not a route. */
+    private boolean looksLikeAsset(String path) {
+        int slash = path.lastIndexOf('/');
+        String last = slash >= 0 ? path.substring(slash + 1) : path;
+        return last.contains(".");
     }
 
     @Override
