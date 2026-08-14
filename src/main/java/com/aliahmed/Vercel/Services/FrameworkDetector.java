@@ -52,22 +52,32 @@ public class FrameworkDetector {
         return new Result(detectFramework(folder), toRelative(repoRoot, folder));
     }
 
-    /** Repo root if it holds a package.json, else the first subfolder that does. */
+    /**
+     * Repo root if it holds a buildable app, else the first subfolder that does. Uses the
+     * same "package.json with a build script" rule the builder uses to pick the folder, so
+     * the detected/auto-filled root directory always matches what actually gets built —
+     * a plain package.json with no build script (docs tooling, config) is skipped.
+     */
     private Path findAppFolder(Path repoRoot) {
-        if (hasPackageJson(repoRoot)) {
+        if (hasBuildScript(repoRoot)) {
             return repoRoot;
         }
         try (Stream<Path> children = Files.list(repoRoot)) {
             return children
                     .filter(Files::isDirectory)
                     .sorted()
-                    .filter(this::hasPackageJson)
+                    .filter(this::hasBuildScript)
                     .findFirst()
                     .orElse(repoRoot);
         } catch (IOException e) {
             log.warn("Could not scan {} while detecting the framework", repoRoot, e);
             return repoRoot;
         }
+    }
+
+    private boolean hasBuildScript(Path dir) {
+        JsonNode pkg = readPackageJson(dir);
+        return pkg != null && pkg.path("scripts").path("build").isTextual();
     }
 
     private String detectFramework(Path folder) {
@@ -104,10 +114,6 @@ public class FrameworkDetector {
             log.warn("Could not read package.json at {}", packageJson, e);
             return null;
         }
-    }
-
-    private boolean hasPackageJson(Path dir) {
-        return Files.isRegularFile(dir.resolve("package.json"));
     }
 
     private boolean hasIndexHtml(Path dir) {
