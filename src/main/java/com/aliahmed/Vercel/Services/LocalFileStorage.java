@@ -62,6 +62,15 @@ public class LocalFileStorage implements StorageService {
             target = target.resolve("index.html");
         }
         if (!Files.isRegularFile(target)) {
+            // SPA fallback: an extension-less path is a client-side route (e.g. /products),
+            // so serve the app's index.html and let the browser's router handle it. A missing
+            // asset (something with a file extension) still 404s.
+            if (!looksLikeAsset(relative)) {
+                Path indexHtml = base.resolve("index.html");
+                if (Files.isRegularFile(indexHtml)) {
+                    return Optional.of(new StoredObject(new FileSystemResource(indexHtml), MediaType.TEXT_HTML));
+                }
+            }
             return Optional.empty();
         }
         MediaType contentType = MediaTypeFactory.getMediaType(target.getFileName().toString())
@@ -78,6 +87,13 @@ public class LocalFileStorage implements StorageService {
             // Cleanup is best-effort — a leftover folder shouldn't fail a disconnect.
             log.warn("Failed to delete stored files for deployment {}", deploymentId, e);
         }
+    }
+
+    /** A path whose last segment contains a "." is a file request (asset), not a route. */
+    private boolean looksLikeAsset(String path) {
+        int slash = path.lastIndexOf('/');
+        String last = slash >= 0 ? path.substring(slash + 1) : path;
+        return last.contains(".");
     }
 
     private void copyRecursively(Path source, Path target) throws IOException {
