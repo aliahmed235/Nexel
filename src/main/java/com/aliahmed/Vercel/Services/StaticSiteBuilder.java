@@ -28,7 +28,8 @@ public class StaticSiteBuilder implements SiteBuilder {
     }
 
     @Override
-    public Path build(Path source) {
+    public Path build(Path source, String basePath) {
+        // basePath is irrelevant here — a pre-built/static site is served exactly as committed.
         for (String dir : COMMON_OUTPUT_DIRS) {
             Path candidate = source.resolve(dir);
             if (Files.isDirectory(candidate) && Files.exists(candidate.resolve("index.html"))) {
