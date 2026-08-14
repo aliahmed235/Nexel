@@ -11,6 +11,7 @@ import com.aliahmed.Vercel.entity.User;
 import com.aliahmed.Vercel.exception.ConflictException;
 import com.aliahmed.Vercel.exception.ResourceNotFoundException;
 import com.aliahmed.Vercel.mapper.ProjectMapper;
+import com.aliahmed.Vercel.util.ProjectPaths;
 import com.aliahmed.Vercel.util.Subdomains;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -64,19 +65,26 @@ public class ProjectService {
                 .defaultBranch(branch)
                 .subdomain(generateUniqueSubdomain(repo.name()))
                 .rootDirectory(request.rootDirectory())
+                .defaultPath(request.defaultPath())
                 .build();
 
         return projectMapper.toResponse(projectRepository.save(project));
     }
 
     /**
-     * Updates a project's build settings (currently just the root directory) so an
-     * already-connected repo can be pointed at a subfolder without reconnecting.
+     * Updates a project's build settings so an already-connected repo can be pointed at
+     * a subfolder, or given a landing path, without reconnecting. Only the fields present
+     * in the request are touched; a blank value clears that setting.
      */
     @Transactional
     public ProjectResponse updateSettings(Long userId, Long id, UpdateProjectRequest request) {
         Project project = getOwned(userId, id);
-        project.setRootDirectory(request.rootDirectory());
+        if (request.rootDirectory() != null) {
+            project.setRootDirectory(ProjectPaths.normalizeRootDirectory(request.rootDirectory()));
+        }
+        if (request.defaultPath() != null) {
+            project.setDefaultPath(ProjectPaths.normalizeDefaultPath(request.defaultPath()));
+        }
         return projectMapper.toResponse(project);
     }
 
