@@ -21,6 +21,7 @@ public class DeploymentMapper {
                 deployment.isCurrent(),
                 deployment.getErrorMessage(),
                 properties.siteUrl(deployment.getProject().getSubdomain(), deployment.getProject().getDefaultPath()),
+                properties.previewUrl(deployment.getId()),
                 deployment.getCreatedAt(),
                 deployment.getReadyAt());
     }
