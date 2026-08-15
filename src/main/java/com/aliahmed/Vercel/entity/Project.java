@@ -75,6 +75,10 @@ public class Project {
     @Column(name = "default_path")
     private String defaultPath;
 
+    /** Id of the GitHub push webhook for auto-deploy. Null if none was registered. */
+    @Column(name = "github_hook_id")
+    private Long githubHookId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
