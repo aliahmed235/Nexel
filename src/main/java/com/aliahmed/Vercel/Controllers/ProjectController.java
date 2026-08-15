@@ -1,6 +1,7 @@
 package com.aliahmed.Vercel.Controllers;
 
 import com.aliahmed.Vercel.Services.ProjectService;
+import com.aliahmed.Vercel.dto.CommitResponse;
 import com.aliahmed.Vercel.dto.CreateProjectRequest;
 import com.aliahmed.Vercel.dto.ProjectResponse;
 import com.aliahmed.Vercel.dto.UpdateProjectRequest;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -36,14 +38,27 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProjectResponse>> list(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(projectService.list(user.getId()));
+    public ResponseEntity<List<ProjectResponse>> list(
+            @RequestParam(name = "deployed", required = false, defaultValue = "false") boolean deployed,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(deployed
+                ? projectService.listDeployed(user.getId())
+                : projectService.list(user.getId()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ProjectResponse> get(@PathVariable Long id,
                                                @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(projectService.get(user.getId(), id));
+    }
+
+    /** The project's recent commits (deploy history) — pass a sha back as "commit" to deploy it. */
+    @GetMapping("/{id}/commits")
+    public ResponseEntity<List<CommitResponse>> commits(
+            @PathVariable Long id,
+            @RequestParam(name = "limit", required = false, defaultValue = "20") int limit,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(projectService.listCommits(user.getId(), id, limit));
     }
 
     /** Update build settings — e.g. point the project at a subfolder to build. */
