@@ -107,6 +107,35 @@ public class R2Storage implements StorageService {
     @Override
     public void delete(Long deploymentId) {
         deleteByPrefix(keyPrefix(deploymentId));
+        s3.deleteObject(builder -> builder.bucket(properties.getBucket()).key(logKey(deploymentId)));
+    }
+
+    @Override
+    public void storeLog(Long deploymentId, String log) {
+        s3.putObject(
+                PutObjectRequest.builder()
+                        .bucket(properties.getBucket())
+                        .key(logKey(deploymentId))
+                        .contentType(MediaType.TEXT_PLAIN_VALUE)
+                        .build(),
+                RequestBody.fromString(log == null ? "" : log));
+    }
+
+    @Override
+    public Optional<String> readLog(Long deploymentId) {
+        try {
+            return Optional.of(s3.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(properties.getBucket())
+                    .key(logKey(deploymentId))
+                    .build()).asUtf8String());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        }
+    }
+
+    /** Logs live outside the deployments/ prefix so they aren't wiped by store() or served. */
+    private String logKey(Long deploymentId) {
+        return "logs/" + deploymentId + ".log";
     }
 
     private void upload(String prefix, Path root, Path file) {
