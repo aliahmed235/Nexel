@@ -53,6 +53,9 @@ app:
   worker:
     # Set false on a pure-API instance once the worker runs elsewhere.
     enabled: ${WORKER_ENABLED:true}
+  webhook:
+    # Shared secret for GitHub push webhooks. Blank disables auto-deploy.
+    secret: ${WEBHOOK_SECRET:}
   storage:
     # "local" (disk / Railway volume) or "r2" (Cloudflare object storage).
     type: ${STORAGE_TYPE:local}
