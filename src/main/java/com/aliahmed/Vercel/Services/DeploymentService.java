@@ -6,6 +6,7 @@ import com.aliahmed.Vercel.dto.DeploymentResponse;
 import com.aliahmed.Vercel.entity.Deployment;
 import com.aliahmed.Vercel.entity.DeploymentStatus;
 import com.aliahmed.Vercel.entity.Project;
+import com.aliahmed.Vercel.exception.ConflictException;
 import com.aliahmed.Vercel.exception.ResourceNotFoundException;
 import com.aliahmed.Vercel.mapper.DeploymentMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ public class DeploymentService {
     private final ProjectRepository projectRepository;
     private final DeploymentMapper deploymentMapper;
     private final BuildQueue buildQueue;
+    private final DeploymentStatusService deploymentStatusService;
+    private final StorageService storageService;
 
     /**
      * Records a new build request as {@link DeploymentStatus#QUEUED} and pushes
@@ -36,18 +39,35 @@ public class DeploymentService {
      * for commit also means a rollback never leaves a queued id behind.
      */
     @Transactional
-    public DeploymentResponse trigger(Long userId, Long projectId) {
+    public DeploymentResponse trigger(Long userId, Long projectId, String commit) {
         Project project = requireOwnedProject(userId, projectId);
+        return deploymentMapper.toResponse(createDeployment(project, normalizeCommit(commit)));
+    }
 
+    /**
+     * Creates a QUEUED deployment for a push, bypassing the ownership check — the caller
+     * (the webhook) has already authenticated the request via its HMAC signature.
+     */
+    @Transactional
+    public void deployOnPush(Project project, String commit) {
+        createDeployment(project, normalizeCommit(commit));
+    }
+
+    private Deployment createDeployment(Project project, String commit) {
         Deployment deployment = Deployment.builder()
                 .project(project)
                 .status(DeploymentStatus.QUEUED)
                 .current(false)
+                .commitSha(commit)
                 .build();
 
         Deployment saved = deploymentRepository.save(deployment);
         enqueueAfterCommit(saved.getId());
-        return deploymentMapper.toResponse(saved);
+        return saved;
+    }
+
+    private String normalizeCommit(String commit) {
+        return (commit == null || commit.isBlank()) ? null : commit.trim();
     }
 
     private void enqueueAfterCommit(Long deploymentId) {
@@ -74,6 +94,31 @@ public class DeploymentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No deployment " + deploymentId + " for project " + projectId));
         return deploymentMapper.toResponse(deployment);
+    }
+
+    /** Rollback/promote: make a past READY deployment the project's live one — no rebuild. */
+    @Transactional
+    public DeploymentResponse promote(Long userId, Long projectId, Long deploymentId) {
+        requireOwnedProject(userId, projectId);
+        Deployment deployment = deploymentRepository.findByIdAndProjectId(deploymentId, projectId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No deployment " + deploymentId + " for project " + projectId));
+        if (deployment.getStatus() != DeploymentStatus.READY) {
+            throw new ConflictException(
+                    "Only a READY deployment can be promoted; this one is " + deployment.getStatus());
+        }
+        deploymentStatusService.makeCurrent(deployment);
+        return deploymentMapper.toResponse(deployment);
+    }
+
+    /** The captured build output for one deployment (empty string if none was stored). */
+    @Transactional(readOnly = true)
+    public String logs(Long userId, Long projectId, Long deploymentId) {
+        requireOwnedProject(userId, projectId);
+        deploymentRepository.findByIdAndProjectId(deploymentId, projectId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No deployment " + deploymentId + " for project " + projectId));
+        return storageService.readLog(deploymentId).orElse("");
     }
 
     /** One place the "is this project mine?" check lives, reused by every method. */
