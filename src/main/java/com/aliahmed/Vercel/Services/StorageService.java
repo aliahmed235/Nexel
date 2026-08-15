@@ -22,4 +22,10 @@ public interface StorageService {
 
     /** Removes a deployment's stored files. Best-effort; safe if already gone. */
     void delete(Long deploymentId);
+
+    /** Stores a deployment's build log, kept apart from its served files. */
+    void storeLog(Long deploymentId, String log);
+
+    /** Reads a deployment's build log, or empty if none was stored. */
+    Optional<String> readLog(Long deploymentId);
 }
