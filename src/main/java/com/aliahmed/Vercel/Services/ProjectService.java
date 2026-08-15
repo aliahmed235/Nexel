@@ -2,6 +2,8 @@ package com.aliahmed.Vercel.Services;
 
 import com.aliahmed.Vercel.Repositories.DeploymentRepository;
 import com.aliahmed.Vercel.Repositories.ProjectRepository;
+import com.aliahmed.Vercel.config.AppProperties;
+import com.aliahmed.Vercel.dto.CommitResponse;
 import com.aliahmed.Vercel.dto.CreateProjectRequest;
 import com.aliahmed.Vercel.dto.GithubRepoResponse;
 import com.aliahmed.Vercel.dto.ProjectResponse;
@@ -35,6 +37,7 @@ public class ProjectService {
     private final UserService userService;
     private final ProjectMapper projectMapper;
     private final StorageService storageService;
+    private final AppProperties properties;
 
     /** Live read-through to GitHub — nothing stored. */
     @Transactional(readOnly = true)
@@ -68,7 +71,27 @@ public class ProjectService {
                 .defaultPath(request.defaultPath())
                 .build();
 
-        return projectMapper.toResponse(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+        registerWebhook(userId, saved);
+        return projectMapper.toResponse(saved);
+    }
+
+    /**
+     * Registers a GitHub push webhook so pushes auto-deploy. Best-effort: if it fails (or
+     * webhooks aren't configured), the project still connects — it just won't auto-deploy.
+     */
+    private void registerWebhook(Long userId, Project project) {
+        String secret = properties.getWebhook().getSecret();
+        if (secret == null || secret.isBlank()) {
+            return;
+        }
+        try {
+            Long hookId = githubRepoClient.createPushWebhook(
+                    userId, project.getRepoFullName(), properties.webhookCallbackUrl(), secret);
+            project.setGithubHookId(hookId);
+        } catch (RuntimeException e) {
+            log.warn("Could not register webhook for {}: {}", project.getRepoFullName(), e.getMessage());
+        }
     }
 
     /**
@@ -95,9 +118,24 @@ public class ProjectService {
                 .toList();
     }
 
+    /** Only the user's projects that have been deployed at least once. */
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> listDeployed(Long userId) {
+        return projectRepository.findDeployedByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(projectMapper::toResponse)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public ProjectResponse get(Long userId, Long id) {
         return projectMapper.toResponse(getOwned(userId, id));
+    }
+
+    /** The project's recent commits (deploy history), read live from GitHub. */
+    @Transactional(readOnly = true)
+    public List<CommitResponse> listCommits(Long userId, Long id, int limit) {
+        Project project = getOwned(userId, id);
+        return githubRepoClient.listCommits(userId, project.getRepoFullName(), project.getDefaultBranch(), limit);
     }
 
     /**
@@ -108,6 +146,15 @@ public class ProjectService {
     @Transactional
     public void delete(Long userId, Long id) {
         Project project = getOwned(userId, id);
+
+        // Remove the GitHub webhook so pushes stop hitting us. Best-effort.
+        if (project.getGithubHookId() != null) {
+            try {
+                githubRepoClient.deleteWebhook(userId, project.getRepoFullName(), project.getGithubHookId());
+            } catch (RuntimeException e) {
+                log.warn("Could not delete webhook for {}: {}", project.getRepoFullName(), e.getMessage());
+            }
+        }
 
         // Ids only (a scalar projection) — loading Deployment entities here would leave
         // them managed and pointing at the about-to-be-removed project, which fails the
