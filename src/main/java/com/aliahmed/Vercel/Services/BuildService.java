@@ -42,23 +42,35 @@ public class BuildService {
         log.info("Building deployment {} ({} @ {})",
                 deploymentId, context.repoFullName(), context.ref());
 
+        StringBuilder buildLog = new StringBuilder();
         SourceFetchService.FetchedSource source = null;
         try {
             source = sourceFetchService.fetch(context.userId(), context.repoFullName(), context.ref());
             Path buildRoot = resolveBuildRoot(source.root(), context.rootDirectory());
             detectFrameworkAndRoot(deploymentId, source.root(), context.rootDirectory());
             String basePath = "/sites/" + context.subdomain() + "/";
-            Path output = selectBuilder(buildRoot).build(buildRoot, basePath);
+            Path output = selectBuilder(buildRoot).build(buildRoot, basePath, buildLog);
             storageService.store(deploymentId, output);
             statusService.markReadyAndCurrent(deploymentId);
             log.info("Deployment {} is READY", deploymentId);
         } catch (Exception e) {
             log.error("Deployment {} FAILED: {}", deploymentId, e.getMessage(), e);
+            buildLog.append("\n\nBuild failed: ").append(e.getMessage()).append("\n");
             statusService.markFailed(deploymentId, e.getMessage());
         } finally {
+            storeBuildLog(deploymentId, buildLog);
             if (source != null) {
                 cleanup(source.workDir());
             }
+        }
+    }
+
+    /** Persist the captured build output. Best-effort — a log failure must not fail the build. */
+    private void storeBuildLog(Long deploymentId, StringBuilder buildLog) {
+        try {
+            storageService.storeLog(deploymentId, buildLog.toString());
+        } catch (RuntimeException e) {
+            log.warn("Could not store build log for deployment {}: {}", deploymentId, e.getMessage());
         }
     }
 
