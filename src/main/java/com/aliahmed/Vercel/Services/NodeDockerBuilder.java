@@ -48,10 +48,10 @@ public class NodeDockerBuilder implements SiteBuilder {
     }
 
     @Override
-    public Path build(Path source, String basePath) {
+    public Path build(Path source, String basePath, StringBuilder buildLog) {
         Path projectDir = resolveProjectDir(source).orElseThrow(() ->
                 new IllegalStateException("No package.json with a build script found in the repo"));
-        runContainerBuild(projectDir, basePath);
+        runContainerBuild(projectDir, basePath, buildLog);
         return locateOutput(projectDir);
     }
 
@@ -93,7 +93,7 @@ public class NodeDockerBuilder implements SiteBuilder {
         }
     }
 
-    private void runContainerBuild(Path projectDir, String basePath) {
+    private void runContainerBuild(Path projectDir, String basePath, StringBuilder buildLog) {
         // We serve sites under a path prefix (e.g. /sites/app-x1y2/), so Vite must bake that
         // exact prefix in as its base. Then assets resolve under the prefix AND the app can
         // read it back via import.meta.env.BASE_URL to set its router's basename, so
@@ -121,7 +121,8 @@ public class NodeDockerBuilder implements SiteBuilder {
                 "sh", "-c", "\"" + innerScript + "\"");
 
         log.info("Running Node build: {}", command);
-        String output = runShell(command);
+        buildLog.append("$ ").append(command).append("\n\n");
+        String output = runShell(command, buildLog);
         log.info("Build output:\n{}", output);
     }
 
@@ -145,7 +146,7 @@ public class NodeDockerBuilder implements SiteBuilder {
         }
     }
 
-    private String runShell(String command) {
+    private String runShell(String command, StringBuilder buildLog) {
         Process process;
         try {
             process = new ProcessBuilder("bash", "-lc", command)
@@ -170,6 +171,10 @@ public class NodeDockerBuilder implements SiteBuilder {
             process.destroyForcibly();
             throw new IllegalStateException("Build was interrupted", e);
         }
+
+        // Capture the full output for the build log regardless of the exit code, so a
+        // failed build's errors are visible, not just the tail in the exception message.
+        buildLog.append(output);
 
         if (process.exitValue() != 0) {
             throw new IllegalStateException(
