@@ -33,11 +33,14 @@ public class DeploymentStatusService {
         return deploymentRepository.findById(deploymentId).map(deployment -> {
             deployment.setStatus(DeploymentStatus.BUILDING);
             Project project = deployment.getProject();
+            // Build the pinned commit if the deployment has one (deploy-a-commit / history);
+            // otherwise the branch tip.
+            String ref = deployment.getCommitSha() != null ? deployment.getCommitSha() : project.getDefaultBranch();
             return new BuildContext(
                     deployment.getId(),
                     project.getUser().getId(),
                     project.getRepoFullName(),
-                    project.getDefaultBranch(),
+                    ref,
                     project.getRootDirectory(),
                     project.getSubdomain());
         });
@@ -55,16 +58,24 @@ public class DeploymentStatusService {
         if (deployment == null) {
             return;
         }
-        Long projectId = deployment.getProject().getId();
+        makeCurrent(deployment);
+        deployment.setStatus(DeploymentStatus.READY);
+        deployment.setReadyAt(Instant.now());
+    }
 
+    /**
+     * Makes {@code deployment} the project's single live one, unsetting whichever was
+     * live before. The previous one is cleared and flushed first so the "one current
+     * per project" unique index is never momentarily violated. Shared by a fresh build
+     * going live and a manual promote/rollback (which points "current" at a past build).
+     */
+    void makeCurrent(Deployment deployment) {
+        Long projectId = deployment.getProject().getId();
         deploymentRepository.findByProjectIdAndCurrentTrue(projectId)
-                .filter(previous -> !previous.getId().equals(deploymentId))
+                .filter(previous -> !previous.getId().equals(deployment.getId()))
                 .ifPresent(previous -> previous.setCurrent(false));
         deploymentRepository.flush();
-
-        deployment.setStatus(DeploymentStatus.READY);
         deployment.setCurrent(true);
-        deployment.setReadyAt(Instant.now());
     }
 
     /**
