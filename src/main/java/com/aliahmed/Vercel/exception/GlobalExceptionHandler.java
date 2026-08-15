@@ -49,6 +49,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, e.getMessage(), request);
     }
 
+    @ExceptionHandler(WebhookException.class)
+    public ResponseEntity<ApiErrorResponse> handleWebhook(WebhookException e, HttpServletRequest request) {
+        log.warn("Rejected webhook on {}: {}", request.getRequestURI(), e.getMessage());
+        return build(HttpStatus.UNAUTHORIZED, "Invalid webhook signature.", request);
+    }
+
     /** Last resort. The real cause goes to the log, never to the client. */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception e, HttpServletRequest request) {
