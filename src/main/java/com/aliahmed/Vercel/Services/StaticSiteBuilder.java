@@ -28,8 +28,9 @@ public class StaticSiteBuilder implements SiteBuilder {
     }
 
     @Override
-    public Path build(Path source, String basePath) {
+    public Path build(Path source, String basePath, StringBuilder buildLog) {
         // basePath is irrelevant here — a pre-built/static site is served exactly as committed.
+        buildLog.append("No build step detected — serving the repository's files as-is.\n");
         for (String dir : COMMON_OUTPUT_DIRS) {
             Path candidate = source.resolve(dir);
             if (Files.isDirectory(candidate) && Files.exists(candidate.resolve("index.html"))) {
