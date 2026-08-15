@@ -35,9 +35,15 @@ public class AppProperties {
     private final AuthCode authCode = new AuthCode();
     private final Worker worker = new Worker();
     private final Storage storage = new Storage();
+    private final Webhook webhook = new Webhook();
 
     public String githubCallbackUrl() {
         return baseUrl + "/api/auth/github/callback";
+    }
+
+    /** Where GitHub sends push events; registered on each connected repo. */
+    public String webhookCallbackUrl() {
+        return baseUrl + "/api/webhooks/github";
     }
 
     /**
@@ -47,6 +53,11 @@ public class AppProperties {
     public String siteUrl(String subdomain, String defaultPath) {
         String suffix = (defaultPath == null || defaultPath.isBlank()) ? "" : defaultPath;
         return baseUrl + "/sites/" + subdomain + "/" + suffix;
+    }
+
+    /** The stable per-deployment preview URL — always serves THAT deployment's files. */
+    public String previewUrl(Long deploymentId) {
+        return baseUrl + "/d/" + deploymentId + "/";
     }
 
     /**
@@ -101,6 +112,16 @@ public class AppProperties {
     public static class Worker {
         /** Whether this instance consumes the build queue. Off = pure API. */
         private boolean enabled = true;
+    }
+
+    @Getter
+    @Setter
+    public static class Webhook {
+        /**
+         * Shared secret GitHub signs push payloads with (X-Hub-Signature-256), which we
+         * verify. Blank disables auto-deploy: no webhook is registered and pushes are rejected.
+         */
+        private String secret;
     }
 
     @Getter
