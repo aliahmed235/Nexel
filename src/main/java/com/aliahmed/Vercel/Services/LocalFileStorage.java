@@ -83,10 +83,40 @@ public class LocalFileStorage implements StorageService {
         Path target = Path.of(properties.getStorage().getPath(), String.valueOf(deploymentId));
         try {
             deleteRecursively(target);
+            Files.deleteIfExists(logPath(deploymentId));
         } catch (IOException e) {
             // Cleanup is best-effort — a leftover folder shouldn't fail a disconnect.
             log.warn("Failed to delete stored files for deployment {}", deploymentId, e);
         }
+    }
+
+    @Override
+    public void storeLog(Long deploymentId, String log) {
+        Path logFile = logPath(deploymentId);
+        try {
+            Files.createDirectories(logFile.getParent());
+            Files.writeString(logFile, log == null ? "" : log);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to store build log for deployment " + deploymentId, e);
+        }
+    }
+
+    @Override
+    public Optional<String> readLog(Long deploymentId) {
+        Path logFile = logPath(deploymentId);
+        if (!Files.isRegularFile(logFile)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Files.readString(logFile));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read build log for deployment " + deploymentId, e);
+        }
+    }
+
+    /** Logs live in a sibling "logs" dir, not under the deployment's served folder. */
+    private Path logPath(Long deploymentId) {
+        return Path.of(properties.getStorage().getPath(), "logs", deploymentId + ".log");
     }
 
     /** A path whose last segment contains a "." is a file request (asset), not a route. */
