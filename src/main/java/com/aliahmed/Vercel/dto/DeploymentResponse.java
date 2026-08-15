@@ -10,6 +10,7 @@ public record DeploymentResponse(
         boolean current,
         String errorMessage,
         String url,
+        String previewUrl,
         Instant createdAt,
         Instant readyAt
 ) {
