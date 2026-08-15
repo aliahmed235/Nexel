@@ -1,6 +1,9 @@
 package com.aliahmed.Vercel.Services;
 
 import com.aliahmed.Vercel.config.GithubOAuthProperties;
+import com.aliahmed.Vercel.dto.CommitResponse;
+import com.aliahmed.Vercel.dto.GithubCommitResponse;
+import com.aliahmed.Vercel.dto.GithubHookResponse;
 import com.aliahmed.Vercel.dto.GithubRepoResponse;
 import com.aliahmed.Vercel.exception.GithubOAuthException;
 import com.aliahmed.Vercel.exception.ResourceNotFoundException;
@@ -12,6 +15,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class RestClientGithubRepoClient implements GithubRepoClient {
@@ -95,5 +99,81 @@ public class RestClientGithubRepoClient implements GithubRepoClient {
         } catch (RestClientException e) {
             throw new GithubOAuthException("Failed to download archive for " + fullName, e);
         }
+    }
+
+    @Override
+    public List<CommitResponse> listCommits(Long userId, String fullName, String branch, int limit) {
+        String token = githubAccountService.accessTokenFor(userId);
+        try {
+            GithubCommitResponse[] commits = restClient.get()
+                    .uri(properties.getApiBaseUrl() + "/repos/" + fullName + "/commits?sha=" + branch + "&per_page=" + limit)
+                    .header("Authorization", "Bearer " + token)
+                    .header(API_VERSION_HEADER, API_VERSION)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(GithubCommitResponse[].class);
+
+            if (commits == null) {
+                return List.of();
+            }
+            return Arrays.stream(commits).map(this::toCommitResponse).toList();
+        } catch (HttpClientErrorException.NotFound | HttpClientErrorException.Forbidden e) {
+            throw new ResourceNotFoundException("Repository not found or not accessible: " + fullName);
+        } catch (RestClientException e) {
+            throw new GithubOAuthException("Failed to list commits for " + fullName, e);
+        }
+    }
+
+    @Override
+    public Long createPushWebhook(Long userId, String fullName, String callbackUrl, String secret) {
+        String token = githubAccountService.accessTokenFor(userId);
+        Map<String, Object> body = Map.of(
+                "name", "web",
+                "active", true,
+                "events", List.of("push"),
+                "config", Map.of("url", callbackUrl, "content_type", "json", "secret", secret));
+        try {
+            GithubHookResponse hook = restClient.post()
+                    .uri(properties.getApiBaseUrl() + "/repos/" + fullName + "/hooks")
+                    .header("Authorization", "Bearer " + token)
+                    .header(API_VERSION_HEADER, API_VERSION)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(GithubHookResponse.class);
+            return hook == null ? null : hook.id();
+        } catch (RestClientException e) {
+            throw new GithubOAuthException("Failed to register a webhook for " + fullName, e);
+        }
+    }
+
+    @Override
+    public void deleteWebhook(Long userId, String fullName, Long hookId) {
+        if (hookId == null) {
+            return;
+        }
+        String token = githubAccountService.accessTokenFor(userId);
+        try {
+            restClient.delete()
+                    .uri(properties.getApiBaseUrl() + "/repos/" + fullName + "/hooks/" + hookId)
+                    .header("Authorization", "Bearer " + token)
+                    .header(API_VERSION_HEADER, API_VERSION)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            // Best-effort: a leftover hook on GitHub does no harm.
+        }
+    }
+
+    private CommitResponse toCommitResponse(GithubCommitResponse c) {
+        GithubCommitResponse.Commit commit = c.commit();
+        String message = commit == null ? null : commit.message();
+        GithubCommitResponse.Author author = commit == null ? null : commit.author();
+        return new CommitResponse(
+                c.sha(),
+                message,
+                author == null ? null : author.name(),
+                author == null ? null : author.date(),
+                c.htmlUrl());
     }
 }
