@@ -23,6 +23,7 @@ public class DeploymentStatusService {
     private static final int MAX_ERROR_LENGTH = 1000;
 
     private final DeploymentRepository deploymentRepository;
+    private final DeploymentEventPublisher eventPublisher;
 
     /**
      * Marks the deployment BUILDING and returns a detached snapshot of what the
@@ -33,6 +34,7 @@ public class DeploymentStatusService {
         return deploymentRepository.findById(deploymentId).map(deployment -> {
             deployment.setStatus(DeploymentStatus.BUILDING);
             Project project = deployment.getProject();
+            eventPublisher.publish(deployment.getId(), project.getId(), DeploymentStatus.BUILDING);
             // Build the pinned commit if the deployment has one (deploy-a-commit / history);
             // otherwise the branch tip.
             String ref = deployment.getCommitSha() != null ? deployment.getCommitSha() : project.getDefaultBranch();
@@ -61,6 +63,7 @@ public class DeploymentStatusService {
         makeCurrent(deployment);
         deployment.setStatus(DeploymentStatus.READY);
         deployment.setReadyAt(Instant.now());
+        eventPublisher.publish(deployment.getId(), deployment.getProject().getId(), DeploymentStatus.READY);
     }
 
     /**
@@ -102,6 +105,7 @@ public class DeploymentStatusService {
         deploymentRepository.findById(deploymentId).ifPresent(deployment -> {
             deployment.setStatus(DeploymentStatus.FAILED);
             deployment.setErrorMessage(truncate(message));
+            eventPublisher.publish(deployment.getId(), deployment.getProject().getId(), DeploymentStatus.FAILED);
         });
     }
 
