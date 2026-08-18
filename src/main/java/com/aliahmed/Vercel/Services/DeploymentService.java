@@ -27,6 +27,7 @@ public class DeploymentService {
     private final BuildQueue buildQueue;
     private final DeploymentStatusService deploymentStatusService;
     private final StorageService storageService;
+    private final DeploymentEventPublisher eventPublisher;
 
     /**
      * Records a new build request as {@link DeploymentStatus#QUEUED} and pushes
@@ -63,6 +64,7 @@ public class DeploymentService {
 
         Deployment saved = deploymentRepository.save(deployment);
         enqueueAfterCommit(saved.getId());
+        eventPublisher.publish(saved.getId(), project.getId(), DeploymentStatus.QUEUED);
         return saved;
     }
 
