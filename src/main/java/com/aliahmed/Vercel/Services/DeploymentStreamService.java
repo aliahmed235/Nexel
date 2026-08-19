@@ -1,6 +1,7 @@
 package com.aliahmed.Vercel.Services;
 
 import com.aliahmed.Vercel.dto.DeploymentEvent;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -43,6 +44,25 @@ public class DeploymentStreamService {
         for (SseEmitter emitter : set) {
             sendTo(emitter, event.deploymentId(), event);
         }
+    }
+
+    /**
+     * Keeps every open stream alive through proxy/load-balancer idle timeouts (Railway drops a
+     * quiet connection, which would kill the stream during the gap between BUILDING and READY).
+     * A comment isn't delivered as an event to the client — it just keeps the pipe warm — and a
+     * failed send here prunes a connection the browser already closed.
+     */
+    @Scheduled(fixedRate = 20_000)
+    public void heartbeat() {
+        emitters.forEach((deploymentId, set) -> {
+            for (SseEmitter emitter : set) {
+                try {
+                    emitter.send(SseEmitter.event().comment("keep-alive"));
+                } catch (IOException | RuntimeException e) {
+                    remove(deploymentId, emitter);
+                }
+            }
+        });
     }
 
     private void sendTo(SseEmitter emitter, Long deploymentId, DeploymentEvent event) {
