@@ -13,6 +13,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.DispatcherType;
+
 import java.util.List;
 
 @Configuration
@@ -34,6 +36,11 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Internal re-dispatches (async SSE, error page, forwards) aren't real
+                        // user requests — don't re-authorize them. Without this, an SSE stream's
+                        // ASYNC dispatch is denied after the response is already committed.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD)
+                        .permitAll()
                         .requestMatchers("/api/auth/github/**", "/api/auth/exchange").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Deployed sites and per-deployment previews are public — no authentication.
