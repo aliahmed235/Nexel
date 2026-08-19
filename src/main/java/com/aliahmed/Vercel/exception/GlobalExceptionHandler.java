@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 /**
  * Turns exceptions into the one error shape the API promises. Without this,
@@ -53,6 +54,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleWebhook(WebhookException e, HttpServletRequest request) {
         log.warn("Rejected webhook on {}: {}", request.getRequestURI(), e.getMessage());
         return build(HttpStatus.UNAUTHORIZED, "Invalid webhook signature.", request);
+    }
+
+    /**
+     * A browser closing an open SSE/async connection (broken pipe) is normal, not an error —
+     * there's no response to send, so log it quietly instead of as an unhandled failure.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleClientDisconnect(AsyncRequestNotUsableException e, HttpServletRequest request) {
+        log.debug("Client disconnected from {}: {}", request.getRequestURI(), e.getMessage());
     }
 
     /** Last resort. The real cause goes to the log, never to the client. */
