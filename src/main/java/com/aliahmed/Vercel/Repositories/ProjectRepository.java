@@ -23,6 +23,9 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     boolean existsByUserIdAndGithubRepoId(Long userId, Long githubRepoId);
 
+    /** The user's existing connection for a repo, if any — used to make connect idempotent. */
+    Optional<Project> findByUserIdAndGithubRepoId(Long userId, Long githubRepoId);
+
     boolean existsBySubdomain(String subdomain);
 
     /** Resolves an incoming site request's subdomain to its project. */
