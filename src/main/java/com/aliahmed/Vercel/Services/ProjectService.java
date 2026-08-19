@@ -10,7 +10,6 @@ import com.aliahmed.Vercel.dto.ProjectResponse;
 import com.aliahmed.Vercel.dto.UpdateProjectRequest;
 import com.aliahmed.Vercel.entity.Project;
 import com.aliahmed.Vercel.entity.User;
-import com.aliahmed.Vercel.exception.ConflictException;
 import com.aliahmed.Vercel.exception.ResourceNotFoundException;
 import com.aliahmed.Vercel.mapper.ProjectMapper;
 import com.aliahmed.Vercel.util.ProjectPaths;
@@ -22,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -54,8 +54,12 @@ public class ProjectService {
     public ProjectResponse create(Long userId, CreateProjectRequest request) {
         GithubRepoResponse repo = githubRepoClient.getRepo(userId, request.repoFullName());
 
-        if (projectRepository.existsByUserIdAndGithubRepoId(userId, repo.githubRepoId())) {
-            throw new ConflictException("This repository is already connected.");
+        // Idempotent connect: if this repo is already connected, return the existing project
+        // instead of a 409 — so the frontend's "connect then deploy" flow just works, and
+        // re-importing an already-imported repo takes you to it (like Vercel).
+        Optional<Project> existing = projectRepository.findByUserIdAndGithubRepoId(userId, repo.githubRepoId());
+        if (existing.isPresent()) {
+            return projectMapper.toResponse(existing.get());
         }
 
         String branch = request.branch() != null ? request.branch() : repo.defaultBranch();
